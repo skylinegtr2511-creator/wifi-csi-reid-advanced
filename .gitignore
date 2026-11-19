@@ -5,6 +5,8 @@ data/Wi-PER81Dataset/
 data/*
 !data/.gitkeep
 
+outputs/checkpoints/
+
 
 # ==========================================
 # Python & Environment Caches
@@ -56,4 +58,5 @@ htmlcov/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-.DS_Store
+.DS_Store*.pth
+*.pt
