@@ -1,0 +1,37 @@
+experiment_name: "pcb_batch_hard"
+seed: 42
+
+data:
+  root_dir: "data/Wi-PER81Dataset/ImageData"
+  img_size: 224
+  p_identities: 8
+  k_samples: 4          # Batch size = 8 * 4 = 32
+  eval_batch_size: 64
+  num_workers: 2
+
+model:
+  arch: "pcb"
+  # Switch between: "convnext_tiny", "efficientnet_v2_s", "mobilenetv4"
+  backbone: "convnext_tiny"
+  pretrained: true
+  embedding_dim: 128
+  num_stripes: 4        # Horizontal OFDM subcarrier bands
+  stripe_dim: 128
+  dropout: 0.5
+
+loss:
+  name: "batch_hard_triplet"
+  margin: 0.3
+  soft_margin: false
+
+training:
+  epochs: 50
+  lr: 0.0001
+  weight_decay: 0.0001
+  patience: 7           # Early stopping monitored on D2v Validation mAP
+  amp: true             # Mixed precision (FP16) for RTX 4060 8GB VRAM
+
+outputs:
+  checkpoint_dir: "outputs/checkpoints"
+  log_dir: "outputs/logs"
+  results_dir: "outputs/results"

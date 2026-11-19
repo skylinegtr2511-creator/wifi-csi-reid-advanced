@@ -1,0 +1,59 @@
+# ==========================================
+# Dataset & Large Binary Artifacts
+# ==========================================
+data/Wi-PER81Dataset/
+data/*
+!data/.gitkeep
+
+
+# ==========================================
+# Python & Environment Caches
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments (Conda / uv / venv)
+.venv/
+venv/
+ENV/
+env/
+.uv/
+
+# ==========================================
+# Jupyter Notebooks & Testing
+# ==========================================
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ==========================================
+# IDE & OS Specific (Windows / VS Code)
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

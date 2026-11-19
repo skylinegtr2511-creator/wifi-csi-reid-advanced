@@ -1,0 +1,4 @@
+Model Architecture,GFLOPS,Total Parameters (M)
+PCB-convnext_tiny,8.911,28.26
+PCB-efficientnet_v2_s,5.387,19.78
+PCB-mobilenetv4,1.655,7.7
