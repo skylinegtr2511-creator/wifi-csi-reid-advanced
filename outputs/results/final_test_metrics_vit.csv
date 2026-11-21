@@ -1,0 +1,4 @@
+Architecture,Backbone,Best Epoch,Test mAP,Test Rank-1,Test Rank-5,Test Rank-10
+VIT,dinov2_small,1,0.1328,0.1399,0.3663,0.4979
+VIT,faster_vit_0,41,0.777,0.8395,0.9712,0.9877
+VIT,eva02_tiny,40,0.6257,0.642,0.8848,0.9342

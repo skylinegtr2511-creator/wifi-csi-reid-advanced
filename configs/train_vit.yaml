@@ -1,0 +1,38 @@
+experiment_name: "vit_post2022_batch_hard"
+seed: 42
+
+data:
+  root_dir: "data/Wi-PER81Dataset/ImageData"
+  img_size: 224
+  p_identities: 8
+  k_samples: 4          # Batch size = 8 * 4 = 32
+  eval_batch_size: 64
+  num_workers: 2
+
+model:
+  arch: "vit"
+  # Two post-2022 transformers: "faster_vit_0" (2023) and "eva02_tiny" (2023)
+  backbone: "faster_vit_0"
+  pretrained: true
+  embedding_dim: 128
+  stripe_dim: 128
+  dropout: 0.5
+
+loss:
+  name: "batch_hard_triplet"
+  margin: 0.3
+  soft_margin: false
+
+training:
+  epochs: 50
+  lr: 0.0002            # Head learning rate (2e-4)
+  backbone_lr: 0.00002  # Gentle backbone learning rate (2e-5) to prevent overfitting D1
+  warmup_epochs: 3      # Linear warmup over first 3 epochs + cosine decay
+  weight_decay: 0.0001
+  patience: 10          # Slightly higher patience for warmup + cosine schedule
+  amp: true
+
+outputs:
+  checkpoint_dir: "outputs/checkpoints"
+  log_dir: "outputs/logs"
+  results_dir: "outputs/results"

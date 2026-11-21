@@ -1,7 +1,6 @@
 import argparse
 import sys
 from pathlib import Path
-from tqdm import tqdm
 
 # Ensure project root is on sys.path when running `python scripts/train.py`
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -10,6 +9,7 @@ if str(ROOT_DIR) not in sys.path:
 
 import pandas as pd
 import torch
+from tqdm import tqdm
 import yaml
 
 from src.dataset import build_dataloaders
@@ -29,14 +29,14 @@ def parse_args():
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/train_pcb.yaml",
+        default="configs/train_vit.yaml",
         help="Path to YAML configuration file.",
     )
     parser.add_argument(
         "--backbone",
         type=str,
         default=None,
-        help="Optional override for model.backbone (e.g., convnext_tiny, efficientnet_v2_s, mobilenetv4).",
+        help="Optional override for model.backbone (e.g., faster_vit_0, eva02_tiny, convnext_tiny).",
     )
     return parser.parse_args()
 
@@ -67,7 +67,7 @@ def main():
         num_workers=cfg["data"]["num_workers"],
     )
 
-    # 2. Model, Loss, Optimizer
+    # 2. Model & Loss
     model = build_model(
         arch=arch,
         backbone=backbone,
@@ -76,6 +76,7 @@ def main():
         dropout=cfg["model"]["dropout"],
         num_stripes=cfg["model"].get("num_stripes", 4),
         stripe_dim=cfg["model"].get("stripe_dim", 128),
+        img_size=cfg["data"]["img_size"],
     ).to(device)
 
     criterion = BatchHardTripletLoss(
@@ -83,17 +84,43 @@ def main():
         soft_margin=cfg["loss"].get("soft_margin", False),
     )
 
-    optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=cfg["training"]["lr"],
+    # 3. Differential Learning Rates + Optional Linear Warmup & Cosine Decay
+    head_lr = cfg["training"]["lr"]
+    backbone_lr = cfg["training"].get("backbone_lr", head_lr)
+
+    if hasattr(model, "backbone") and hasattr(model, "head") and backbone_lr != head_lr:
+        param_groups = [
+            {"params": model.backbone.parameters(), "lr": backbone_lr},
+            {"params": model.head.parameters(), "lr": head_lr},
+        ]
+        print(f"Using differential learning rates -> backbone_lr: {backbone_lr}, head_lr: {head_lr}")
+    else:
+        param_groups = [{"params": model.parameters(), "lr": head_lr}]
+
+    optimizer = torch.optim.AdamW(
+        param_groups,
         weight_decay=cfg["training"]["weight_decay"],
     )
+
+    epochs = cfg["training"]["epochs"]
+    warmup_epochs = cfg["training"].get("warmup_epochs", 0)
+    if warmup_epochs > 0:
+        warmup_sched = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=0.1, total_iters=warmup_epochs
+        )
+        cosine_sched = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=max(1, epochs - warmup_epochs), eta_min=1e-6
+        )
+        scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, schedulers=[warmup_sched, cosine_sched], milestones=[warmup_epochs]
+        )
+    else:
+        scheduler = None
 
     use_amp = cfg["training"].get("amp", True) and device.type == "cuda"
     scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
 
-    # 3. Training & Validation Loop
-    epochs = cfg["training"]["epochs"]
+    # 4. Training & Validation Loop
     patience = cfg["training"]["patience"]
     best_val_map = -1.0
     epochs_no_improve = 0
@@ -113,7 +140,6 @@ def main():
     }
 
     for epoch in range(1, epochs + 1):
-        # Update PKSampler epoch seed so batches reshuffle deterministically every epoch
         if hasattr(loaders["train"].batch_sampler, "set_epoch"):
             loaders["train"].batch_sampler.set_epoch(epoch)
 
@@ -144,6 +170,9 @@ def main():
             num_batches += 1
             pbar.set_postfix(loss=f"{loss.item():.4f}")
 
+        if scheduler is not None:
+            scheduler.step()
+
         avg_train_loss = running_loss / max(1, num_batches)
 
         # Validation retrieval evaluation & validation loss on D2v
@@ -151,7 +180,6 @@ def main():
         val_g_embs, val_g_labels, _ = extract_embeddings(model, loaders["val_gallery"], device)
         val_metrics = evaluate_reid_metrics(val_p_embs, val_p_labels, val_g_embs, val_g_labels)
 
-        # Compute Batch-Hard Triplet Loss across all D2v validation embeddings
         val_all_embs = torch.cat([val_p_embs, val_g_embs], dim=0)
         val_all_labels = torch.cat([val_p_labels, val_g_labels], dim=0)
         val_loss = criterion(val_all_embs, val_all_labels).item()
@@ -187,7 +215,7 @@ def main():
 
     save_history(history, history_path)
 
-    # 4. Load Best Checkpoint and Evaluate on Unseen Test Split (D2t)
+    # 5. Load Best Checkpoint and Evaluate on Unseen Test Split (D2t)
     print(f"\n=== Evaluating Best Checkpoint on Unseen Test Split (D2t) ===")
     checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model_state_dict"])

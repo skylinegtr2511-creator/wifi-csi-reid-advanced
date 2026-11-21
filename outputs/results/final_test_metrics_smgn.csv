@@ -1,0 +1,4 @@
+Architecture,Backbone,Best Epoch,Test mAP,Test Rank-1,Test Rank-5,Test Rank-10
+SMGN,mobilenetv4,48,0.7052,0.7037,0.9424,0.9918
+SMGN,efficientnet_v2_s,48,0.6713,0.6914,0.9218,0.9588
+SMGN,convnext_tiny,28,0.8205,0.8477,0.963,0.9753

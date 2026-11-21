@@ -21,3 +21,40 @@ def test_pcb_backbones_forward_and_unit_norm(backbone):
     assert emb.shape == (4, 128), f"{backbone} output shape mismatch: {emb.shape}"
     norms = torch.norm(emb, p=2, dim=1)
     assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5), f"{backbone} embeddings are not unit-normalized"
+
+@pytest.mark.parametrize("backbone", ["convnext_tiny", "efficientnet_v2_s", "mobilenetv4"])
+def test_smgn_backbones_forward_and_unit_norm(backbone):
+    model = build_model(
+        arch="smgn",
+        backbone=backbone,
+        pretrained=False,
+        embedding_dim=128,
+    )
+    model.eval()
+
+    x = torch.randn(4, 3, 224, 224)
+    with torch.no_grad():
+        emb = model(x)
+
+    assert emb.shape == (4, 128), f"SMGN-{backbone} output shape mismatch: {emb.shape}"
+    norms = torch.norm(emb, p=2, dim=1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5)
+
+@pytest.mark.parametrize("backbone", ["eva02_tiny", "dinov2_small"])
+def test_vit_backbones_forward_and_unit_norm(backbone):
+    model = build_model(
+        arch="vit",
+        backbone=backbone,
+        pretrained=False,
+        embedding_dim=128,
+        img_size=224,
+    )
+    model.eval()
+
+    x = torch.randn(4, 3, 224, 224)
+    with torch.no_grad():
+        emb = model(x)
+
+    assert emb.shape == (4, 128), f"ViT-{backbone} output shape mismatch: {emb.shape}"
+    norms = torch.norm(emb, p=2, dim=1)
+    assert torch.allclose(norms, torch.ones_like(norms), atol=1e-5)
